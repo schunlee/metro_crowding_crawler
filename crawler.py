@@ -12,6 +12,10 @@ import sys
 reload(sys)
 sys.setdefaultencoding("utf-8")
 
+'''
+iconv -f UTF8 -t GB18030 cd_metro.csv > cd_metro_convert.csv
+'''
+
 
 def get_time_stamp13(datetime_obj):
     datetime_str = datetime.datetime.strftime(datetime_obj, '%Y-%m-%d %H:%M:00')
@@ -88,7 +92,15 @@ if __name__ == '__main__':
     call_time_str = str(get_time_stamp13(now_time))  # 转为13位时间戳
     data = get_crowding_info(call_time_str).json()  # 获取地铁拥堵数据
     with open(os.path.join(os.path.expanduser("~"), "cd_metro.csv"), "w") as f:
-        csv_writer = csv.writer(f, dialect='excel', delimiter=',')
-        csv_writer.writerow(data["returnData"][0].keys())
+        csv_writer = csv.DictWriter(f, dialect='excel', delimiter=',',
+                                    fieldnames=["crawl_date", "direction", "lineName", "beginCode", "sectionId",
+                                                "color",
+                                                "remark", "sectionName", "dmyjd", "updateTime", "timeDate", "endTimeHM",
+                                                "dmyjdDescr",
+                                                "section_state", "endTime", "startTime", "startTimeHM", "lineId",
+                                                "endCode"])
+        csv_writer.writeheader()
         for row in data["returnData"]:
-            csv_writer.writerow(row.values())
+            row.update({"crawl_date": now_time})
+
+            csv_writer.writerow(row)
