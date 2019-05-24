@@ -102,5 +102,5 @@ if __name__ == '__main__':
         csv_writer.writeheader()
         for row in data["returnData"]:
             row.update({"crawl_date": now_time})
-
-            csv_writer.writerow(row)
+            csv_writer.writerow(
+                {k: v.decode('utf-8').encode('gb18030') if type(v) == unicode else v for k, v in row.items()})

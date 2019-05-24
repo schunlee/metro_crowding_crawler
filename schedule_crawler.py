@@ -13,6 +13,7 @@ reload(sys)
 sys.setdefaultencoding("utf-8")
 
 scheduler = BlockingScheduler()
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 def get_time_stamp13(datetime_obj):
@@ -75,7 +76,7 @@ def get_crowding_info(call_time):
     return requests.post(url, headers=headers)
 
 
-@scheduler.scheduled_job("cron", day_of_week='*', hour='*', minute='*/1', second='5')
+@scheduler.scheduled_job("cron", day_of_week='*', hour='7,8,9,14, 17,18,19,20,21', minute='*/10', second='10')
 def fetch_data():
     '''
     单元数据如下(感觉只能获得实时数据，无法获得历史数据，callTime只对sign加密有用)：
@@ -88,12 +89,20 @@ def fetch_data():
     '''
     now_time = datetime.datetime.now()  # 获取当前时间
     call_time_str = str(get_time_stamp13(now_time))  # 转为13位时间戳
+    print now_time
     try:
         data = get_crowding_info(call_time_str).json()  # 获取地铁拥堵数据
     except Exception, msg:
         print "{} => {}".format(now_time, msg)
     else:
-        with open(os.path.join(os.path.expanduser("~"), "cd_metro.csv"), "w") as f:
+        if not os.path.exists(os.path.join(BASE_DIR, "{date:%Y%m%d}_metro.csv".format(date=now_time))):
+            mode = "w"
+            header_flag = True
+        else:
+            mode = "a"
+            header_flag = False
+
+        with open(os.path.exists(os.path.join(BASE_DIR, "{date:%Y%m%d}_metro.csv".format(date=now_time))), mode) as f:
             csv_writer = csv.DictWriter(f, dialect='excel', delimiter=',',
                                         fieldnames=["crawl_date", "direction", "lineName", "beginCode", "sectionId",
                                                     "color",
@@ -102,24 +111,16 @@ def fetch_data():
                                                     "dmyjdDescr",
                                                     "section_state", "endTime", "startTime", "startTimeHM", "lineId",
                                                     "endCode"])
+            if header_flag:
+                csv_writer.writeheader()
             for row in data["returnData"]:
                 row.update({"crawl_date": now_time})
-
-                csv_writer.writerow(row)
+                csv_writer.writerow(
+                    {k: v.decode('utf-8').encode('gb18030') if type(v) == unicode else v for k, v in row.items()})
 
 
 if __name__ == '__main__':
     pass
-
-    with open(os.path.join(os.path.expanduser("~"), "cd_metro.csv"), "w") as f:
-        csv_writer = csv.DictWriter(f, dialect='excel', delimiter=',',
-                                    fieldnames=["crawl_date", "direction", "lineName", "beginCode", "sectionId",
-                                                "color",
-                                                "remark", "sectionName", "dmyjd", "updateTime", "timeDate", "endTimeHM",
-                                                "dmyjdDescr",
-                                                "section_state", "endTime", "startTime", "startTimeHM", "lineId",
-                                                "endCode"])
-        csv_writer.writeheader()
 
     try:
         scheduler.start()
